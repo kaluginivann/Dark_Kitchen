@@ -8,7 +8,8 @@ import (
 )
 
 type Config struct {
-	DB *DataBaseConfig
+	DB     *DataBaseConfig
+	Server *ServerConfig
 }
 
 type DataBaseConfig struct {
@@ -17,6 +18,11 @@ type DataBaseConfig struct {
 	Password string
 	DB       string
 	Port     int
+}
+
+type ServerConfig struct {
+	Port    int
+	BaseApi string
 }
 
 func LoadConfig() *Config {
@@ -28,6 +34,10 @@ func LoadConfig() *Config {
 			Password: GetEnv("POSTGRES_PASSWORD", "my_pass"),
 			DB:       GetEnv("POSTGRES_DB", "my_db"),
 			Port:     GetIntEnv("POSTGRES_PORT", 5432),
+		},
+		Server: &ServerConfig{
+			Port:    GetIntEnv("SERVER_PORT", 8000),
+			BaseApi: GetEnv("BASE_API", "/api/v1"),
 		},
 	}
 	return config
