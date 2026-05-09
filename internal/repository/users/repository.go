@@ -40,16 +40,18 @@ func (r *Repository) Create(ctx context.Context, user *models.User) (*int, error
 }
 
 func (r *Repository) GetByID(ctx context.Context, id int) (*models.User, error) {
-
 	query := `SELECT id, username, email, password, created_at, updated_at FROM users WHERE id = $1`
 
 	rows, err := r.db.Query(ctx, query, id)
 	if err != nil {
 		r.logger.Error("repository.Users.GetById failed to query", zap.Error(err))
+		return nil, err
 	}
+
 	user, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.User])
 	if err != nil {
 		r.logger.Error("repository.Users.GetById failed to collect user", zap.Error(err))
+		return nil, err
 	}
 
 	return &user, nil

@@ -7,5 +7,5 @@ type ServerConfig struct {
 
 func (s *ServerConfig) loadFromEnv() {
 	s.Port = getEnvInt("SERVER_PORT", 8080)
-	s.BaseApi = getEnv("BASE_API", "api/test")
+	s.BaseApi = getEnv("BASE_API", "api/v1")
 }

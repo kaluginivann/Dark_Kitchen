@@ -74,6 +74,6 @@ func New(pool *pgxpool.Pool, dbExecutor sql.DBExecutor, logger *zap.Logger) Repo
 		pool:            pool,
 		dbExecutor:      dbExecutor,
 		logger:          logger,
-		usersRepository: users.NewUsersRepository(pool, logger),
+		usersRepository: users.NewUsersRepository(dbExecutor, logger),
 	}
 }
