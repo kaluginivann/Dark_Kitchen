@@ -1,16 +1,15 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kaluginivann/Dark_Kitchen/config"
 	"github.com/kaluginivann/Dark_Kitchen/pkg/logger"
-	"github.com/kaluginivann/Dark_Kitchen/pkg/req"
-	"github.com/kaluginivann/Dark_Kitchen/pkg/res"
 )
 
 type UserHandler struct {
@@ -19,33 +18,37 @@ type UserHandler struct {
 	Logger      logger.Interface
 }
 
-func NewUserHandler(router *chi.Mux, userService IService, config *config.Config, logger logger.Interface) {
+func NewUserHandler(api huma.API, userService IService, config *config.Config, logger logger.Interface) {
 	handler := &UserHandler{UserService: userService, Config: config, Logger: logger}
-	router.Route(fmt.Sprintf("%s/users", config.Server.BaseApi), func(r chi.Router) {
-		r.Post("/register", handler.Register())
-	})
+	huma.Register(
+		api,
+		huma.Operation{
+			OperationID: "register-user",
+			Method:      http.MethodPost,
+			Path:        fmt.Sprintf("%s/users/register", config.Server.BaseApi),
+			Summary:     "Register Users",
+		},
+		handler.Register,
+	)
 }
 
-func (u *UserHandler) Register() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := req.Decode[RegisterRequest](r.Body)
-		if err != nil {
-			res.JSON(w, "Invalid Body", http.StatusBadRequest, u.Logger)
-			return
-		}
-		registerResp, err := u.UserService.Register(r.Context(), &body)
-		if err != nil {
-			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
-				if pgErr.Code == UserAlreadyExistCode {
-					u.Logger.Error("user already exists")
-					res.JSON(w, UserAlreadyExist, http.StatusBadRequest, u.Logger)
-					return
-				}
+func (u *UserHandler) Register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
+	registerResp, err := u.UserService.Register(ctx, &input.Body)
+	if err != nil {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+			if pgErr.Code == UserAlreadyExistCode {
+				u.Logger.Error("user already exists")
+				return nil, huma.Error400BadRequest(UserAlreadyExist)
 			}
-			u.Logger.Error("service error", "error", err)
-			res.JSON(w, "Internal service error", http.StatusInternalServerError, u.Logger)
-			return
 		}
-		res.JSON(w, registerResp, http.StatusCreated, u.Logger)
+		u.Logger.Error("service error", "error", err)
+		return nil, huma.Error500InternalServerError("Internal service error")
 	}
+	return &RegisterOutput{
+		Body: RegisterResponse{
+			Id:       registerResp.Id,
+			Username: registerResp.Username,
+			Email:    registerResp.Email,
+		},
+	}, nil
 }

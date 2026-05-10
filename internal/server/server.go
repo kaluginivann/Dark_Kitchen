@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/kaluginivann/Dark_Kitchen/config"
@@ -29,6 +31,14 @@ func New(config *config.Config, log logger.Interface) *Server {
 	}
 }
 
+func (s *Server) addMiddleware(mainRouter *chi.Mux) {
+	mainRouter.Use(middleware.RequestID)
+	mainRouter.Use(middleware.RealIP)
+	mainRouter.Use(middleware.Recoverer)
+	mainRouter.Use(middleware.Logger)
+	mainRouter.Use(middleware.Timeout(30 * time.Second))
+}
+
 func (s *Server) buildDependencies() (*chi.Mux, *db.Database, error) {
 	Database, err := db.New(s.Config)
 	if err != nil {
@@ -44,14 +54,18 @@ func (s *Server) buildDependencies() (*chi.Mux, *db.Database, error) {
 
 	// Main router
 	mainRouter := chi.NewRouter()
-	mainRouter.Use(middleware.RequestID)
-	mainRouter.Use(middleware.RealIP)
-	mainRouter.Use(middleware.Recoverer)
-	mainRouter.Use(middleware.Logger)
-	mainRouter.Use(middleware.Timeout(30 * time.Second))
+	s.addMiddleware(mainRouter)
+
+	api := humachi.New(
+		mainRouter,
+		huma.DefaultConfig(
+			"Dark Kitchen",
+			"1.0.0",
+		),
+	)
 
 	// Handlers
-	users.NewUserHandler(mainRouter, UserService, s.Config, s.Logger)
+	users.NewUserHandler(api, UserService, s.Config, s.Logger)
 
 	return mainRouter, Database, nil
 }
